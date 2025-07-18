@@ -48,11 +48,13 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
+        // Révoquer le token actuel
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
+            'success' => true,
             'message' => 'Déconnexion réussie'
-        ]);
+        ], 200);
     }
 
     /**
@@ -60,7 +62,11 @@ class AuthController extends Controller
      */
     public function user(Request $request)
     {
-        return response()->json($request->user());
+        return response()->json([
+            'success' => true,
+            'data' => $request->user(),
+            'message' => 'Informations utilisateur récupérées avec succès'
+        ], 200);
     }
 
     /**
@@ -78,6 +84,12 @@ class AuthController extends Controller
 
         $user = $request->user();
 
+        $updateData = [
+            'name' => $request->name,
+            'email' => $request->email,
+            'phone' => $request->phone,
+        ];
+
         // Vérifier le mot de passe actuel si un nouveau mot de passe est fourni
         if ($request->filled('new_password')) {
             if (!Hash::check($request->current_password, $user->password)) {
@@ -85,19 +97,10 @@ class AuthController extends Controller
                     'current_password' => ['Le mot de passe actuel est incorrect.'],
                 ]);
             }
-            $user->password = Hash::make($request->new_password);
+            $updateData['password'] = Hash::make($request->new_password);
         }
 
-        $user->update([
-            'name' => $request->name,
-            'email' => $request->email,
-            'phone' => $request->phone,
-        ]);
-
-        if ($request->filled('new_password')) {
-            $user->password = Hash::make($request->new_password);
-            $user->save();
-        }
+        $user->update($updateData);
 
         return response()->json([
             'message' => 'Profil mis à jour avec succès',

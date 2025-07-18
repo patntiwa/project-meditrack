@@ -7,6 +7,9 @@ use App\Http\Controllers\Api\PatientController;
 use App\Http\Controllers\Api\VitalSignController;
 use App\Http\Controllers\Api\ConsultationController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DocumentController;
+use App\Http\Controllers\Api\PrescriptionController;
+use App\Http\Controllers\Api\AppointmentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -41,6 +44,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('consultations', ConsultationController::class);
     Route::get('/consultations-today', [ConsultationController::class, 'today']);
     Route::get('/consultations-month', [ConsultationController::class, 'thisMonth']);
+
+    // Documents
+    Route::apiResource('documents', DocumentController::class);
+
+    // Prescriptions
+    Route::apiResource('prescriptions', PrescriptionController::class);
+
+    // Appointments
+    Route::apiResource('appointments', AppointmentController::class);
 
     // Routes spécifiques par rôle
     Route::middleware('role:medecin')->group(function () {

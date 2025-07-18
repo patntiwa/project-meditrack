@@ -3,57 +3,29 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Consultation;
-use App\Models\Patient;
 use Illuminate\Http\Request;
+use App\Models\Consultation;
+use Illuminate\Support\Facades\Validator;
+use Carbon\Carbon;
 
 class ConsultationController extends Controller
 {
-    /**
-     * Liste des consultations
-     */
-    public function index(Request $request)
+    public function index()
     {
-        $query = Consultation::with(['patient', 'doctor']);
+        $consultations = Consultation::with(['patient', 'doctor'])->get();
 
-        // Filtrage par médecin
-        $user = $request->user();
-        if ($user->role === 'medecin') {
-            $query->byDoctor($user->id);
-        }
-
-        // Filtrage par patient
-        if ($request->filled('patient_id')) {
-            $query->byPatient($request->patient_id);
-        }
-
-        // Filtrage par date
-        if ($request->filled('date')) {
-            $query->whereDate('consultation_date', $request->date);
-        }
-
-        $consultations = $query->orderBy('consultation_date', 'desc')->get();
-
-        return response()->json($consultations);
+        return response()->json([
+            'success' => true,
+            'data' => $consultations,
+            'message' => 'Liste des consultations récupérée avec succès.'
+        ], 200);
     }
 
-    /**
-     * Détails d'une consultation
-     */
-    public function show(Consultation $consultation)
-    {
-        $consultation->load(['patient', 'doctor']);
-
-        return response()->json($consultation);
-    }
-
-    /**
-     * Créer une nouvelle consultation
-     */
     public function store(Request $request)
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'patient_id' => 'required|exists:patients,id',
+            'doctor_id' => 'required|exists:users,id',
             'consultation_date' => 'required|date',
             'symptoms' => 'required|string',
             'diagnosis' => 'required|string',
@@ -61,85 +33,134 @@ class ConsultationController extends Controller
             'recommendations' => 'nullable|string',
             'prescription' => 'nullable|string',
             'follow_up' => 'nullable|string',
-            'documents' => 'nullable|array',
+            'documents' => 'nullable|json'
         ]);
 
-        $consultation = Consultation::create([
-            ...$request->all(),
-            'doctor_id' => $request->user()->id,
-        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+                'message' => 'Erreur de validation.'
+            ], 422);
+        }
 
-        // Mettre à jour la date de dernière consultation du patient
-        $patient = Patient::find($request->patient_id);
-        $patient->update(['last_consultation' => $request->consultation_date]);
+        $consultation = Consultation::create($request->only([
+            'patient_id', 'doctor_id', 'consultation_date', 'symptoms', 'diagnosis', 
+            'treatment', 'recommendations', 'prescription', 'follow_up', 'documents'
+        ]));
 
-        return response()->json($consultation->load(['patient', 'doctor']), 201);
+        return response()->json([
+            'success' => true,
+            'data' => $consultation,
+            'message' => 'Consultation créée avec succès.'
+        ], 201);
     }
 
-    /**
-     * Mettre à jour une consultation
-     */
-    public function update(Request $request, Consultation $consultation)
+    public function show($id)
     {
-        $request->validate([
-            'consultation_date' => 'required|date',
-            'symptoms' => 'required|string',
-            'diagnosis' => 'required|string',
-            'treatment' => 'required|string',
+        $consultation = Consultation::with(['patient', 'doctor'])->find($id);
+
+        if (!$consultation) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Consultation introuvable.'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $consultation,
+            'message' => 'Consultation trouvée.'
+        ], 200);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $consultation = Consultation::find($id);
+
+        if (!$consultation) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Consultation introuvable.'
+            ], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'patient_id' => 'sometimes|required|exists:patients,id',
+            'doctor_id' => 'sometimes|required|exists:users,id',
+            'consultation_date' => 'sometimes|required|date',
+            'symptoms' => 'sometimes|required|string',
+            'diagnosis' => 'sometimes|required|string',
+            'treatment' => 'sometimes|required|string',
             'recommendations' => 'nullable|string',
             'prescription' => 'nullable|string',
             'follow_up' => 'nullable|string',
-            'documents' => 'nullable|array',
+            'documents' => 'nullable|json'
         ]);
 
-        $consultation->update($request->all());
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+                'message' => 'Erreur de validation.'
+            ], 422);
+        }
 
-        return response()->json($consultation->load(['patient', 'doctor']));
+        $consultation->update($request->only([
+            'patient_id', 'doctor_id', 'consultation_date', 'symptoms', 'diagnosis', 
+            'treatment', 'recommendations', 'prescription', 'follow_up', 'documents'
+        ]));
+
+        return response()->json([
+            'success' => true,
+            'data' => $consultation,
+            'message' => 'Consultation mise à jour avec succès.'
+        ], 200);
     }
 
-    /**
-     * Supprimer une consultation
-     */
-    public function destroy(Consultation $consultation)
+    public function destroy($id)
     {
+        $consultation = Consultation::find($id);
+
+        if (!$consultation) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Consultation introuvable.'
+            ], 404);
+        }
+
         $consultation->delete();
 
         return response()->json([
-            'message' => 'Consultation supprimée avec succès'
-        ]);
+            'success' => true,
+            'message' => 'Consultation supprimée avec succès.'
+        ], 204);
     }
 
-    /**
-     * Consultations d'aujourd'hui
-     */
-    public function today(Request $request)
+    public function today()
     {
-        $query = Consultation::with(['patient', 'doctor'])->today();
+        $today = Carbon::today();
+        $consultations = Consultation::whereDate('consultation_date', $today)->with(['patient', 'doctor'])->get();
 
-        $user = $request->user();
-        if ($user->role === 'medecin') {
-            $query->byDoctor($user->id);
-        }
-
-        $consultations = $query->orderBy('consultation_date')->get();
-
-        return response()->json($consultations);
+        return response()->json([
+            'success' => true,
+            'data' => $consultations,
+            'message' => "Consultations du jour récupérées avec succès."
+        ], 200);
     }
 
-    /**
-     * Consultations du mois
-     */
-    public function thisMonth(Request $request)
+    public function thisMonth()
     {
-        $query = Consultation::with(['patient', 'doctor'])->thisMonth();
+        $now = Carbon::now();
+        $consultations = Consultation::whereMonth('consultation_date', $now->month)
+            ->whereYear('consultation_date', $now->year)
+            ->with(['patient', 'doctor'])
+            ->get();
 
-        $user = $request->user();
-        if ($user->role === 'medecin') {
-            $query->byDoctor($user->id);
-        }
-
-        $consultations = $query->orderBy('consultation_date', 'desc')->get();
-
-        return response()->json($consultations);
+        return response()->json([
+            'success' => true,
+            'data' => $consultations,
+            'message' => "Consultations du mois récupérées avec succès."
+        ], 200);
     }
 }

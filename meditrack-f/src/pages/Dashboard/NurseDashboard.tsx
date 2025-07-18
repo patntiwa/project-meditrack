@@ -9,7 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 const NurseDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { patients, vitalSigns } = useData();
+  const { patients = [], vitalSigns = [] } = useData();
   const [careSchedule, setCareSchedule] = useState([
     { id: 1, time: '08:00', task: 'Prise de constantes - Tous les patients', status: 'pending' },
     { id: 2, time: '12:00', task: 'Distribution médicaments', status: 'completed' },
@@ -17,11 +17,11 @@ const NurseDashboard: React.FC = () => {
     { id: 4, time: '20:00', task: 'Contrôle nocturne', status: 'pending' }
   ]);
 
-  const myPatients = patients.filter(patient => patient.assignedNurse === user?.id);
-  const todayVitalSigns = vitalSigns.filter(vital => 
+  const myPatients = Array.isArray(patients) ? patients.filter(patient => patient.assignedNurse === user?.id) : [];
+  const todayVitalSigns = Array.isArray(vitalSigns) ? vitalSigns.filter(vital => 
     new Date(vital.date).toDateString() === new Date().toDateString()
-  );
-  const alertPatients = vitalSigns.filter(vital => vital.anomalyDetected);
+  ) : [];
+  const alertPatients = Array.isArray(vitalSigns) ? vitalSigns.filter(vital => vital.anomalyDetected) : [];
 
   const handleMarkCompleted = (taskId: number) => {
     setCareSchedule(prevSchedule => 

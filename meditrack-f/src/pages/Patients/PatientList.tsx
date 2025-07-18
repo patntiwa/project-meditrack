@@ -12,7 +12,7 @@ import { useAuth } from '../../contexts/AuthContext';
 const PatientList: React.FC = () => {
   const { user } = useAuth();
   const { 
-    patients,
+    patients = [],
     patientsLoading: isLoading,
     patientsError: error
   } = useData();
@@ -20,7 +20,10 @@ const PatientList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  const filteredPatients = patients.filter(patient => {
+  // Ajouter un log pour déboguer
+  console.log('Données brutes reçues:', patients);
+
+  const filteredPatients = Array.isArray(patients) ? patients.filter(patient => {
     const matchesSearch = patient.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          patient.lastName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || patient.status === filterStatus;
@@ -31,7 +34,9 @@ const PatientList: React.FC = () => {
                        (user?.role === 'infirmier' && patient.assignedNurse === user.id);
     
     return matchesSearch && matchesStatus && matchesRole;
-  });
+  }) : [];
+
+  console.log('Données filtrées:', filteredPatients);
 
   const getStatusColor = (status: string) => {
     switch (status) {
