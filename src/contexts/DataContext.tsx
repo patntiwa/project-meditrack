@@ -1,29 +1,35 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { Patient, Consultation, VitalSigns, Document, Prescription, Appointment } from '../types';
 import { 
-  mockPatients, 
-  mockConsultations, 
-  mockVitalSigns, 
-  mockDocuments, 
-  mockPrescriptions, 
-  mockAppointments 
+  mockPatients,
+  mockConsultations,
+  mockVitalSigns,
+  mockDocuments,
+  mockPrescriptions,
+  mockAppointments
 } from '../data/mockData';
 
 interface DataContextType {
   // Patients
   patients: Patient[];
+  patientsLoading: boolean;
+  patientsError: string | null;
   addPatient: (patient: Patient) => void;
   updatePatient: (id: string, patient: Partial<Patient>) => void;
   deletePatient: (id: string) => void;
   
   // Consultations
   consultations: Consultation[];
+  consultationsLoading: boolean;
+  consultationsError: string | null;
   addConsultation: (consultation: Consultation) => void;
   updateConsultation: (id: string, consultation: Partial<Consultation>) => void;
   deleteConsultation: (id: string) => void;
   
   // Vital Signs
   vitalSigns: VitalSigns[];
+  vitalSignsLoading: boolean;
+  vitalSignsError: string | null;
   addVitalSigns: (vitalSigns: VitalSigns) => void;
   updateVitalSigns: (id: string, vitalSigns: Partial<VitalSigns>) => void;
   deleteVitalSigns: (id: string) => void;
@@ -41,6 +47,8 @@ interface DataContextType {
   
   // Appointments
   appointments: Appointment[];
+  appointmentsLoading: boolean;
+  appointmentsError: string | null;
   addAppointment: (appointment: Appointment) => void;
   updateAppointment: (id: string, appointment: Partial<Appointment>) => void;
   deleteAppointment: (id: string) => void;
@@ -63,11 +71,22 @@ interface DataProviderProps {
 export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   // États pour stocker toutes les données
   const [patients, setPatients] = useState<Patient[]>(mockPatients);
+  const [patientsLoading, setPatientsLoading] = useState(false);
+  const [patientsError, setPatientsError] = useState<string | null>(null);
+
   const [consultations, setConsultations] = useState<Consultation[]>(mockConsultations);
+  const [consultationsLoading, setConsultationsLoading] = useState(false);
+  const [consultationsError, setConsultationsError] = useState<string | null>(null);
+
   const [vitalSigns, setVitalSigns] = useState<VitalSigns[]>(mockVitalSigns);
+  const [vitalSignsLoading, setVitalSignsLoading] = useState(false);
+  const [vitalSignsError, setVitalSignsError] = useState<string | null>(null);
   const [documents, setDocuments] = useState<Document[]>(mockDocuments);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>(mockPrescriptions);
+  
   const [appointments, setAppointments] = useState<Appointment[]>(mockAppointments);
+  const [appointmentsLoading, setAppointmentsLoading] = useState(false);
+  const [appointmentsError, setAppointmentsError] = useState<string | null>(null);
 
   // Fonctions pour gérer les patients
   const addPatient = (patient: Patient) => {
@@ -157,18 +176,24 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     <DataContext.Provider value={{
       // Patients
       patients,
+      patientsLoading,
+      patientsError,
       addPatient,
       updatePatient,
       deletePatient,
       
       // Consultations
       consultations,
+      consultationsLoading,
+      consultationsError,
       addConsultation,
       updateConsultation,
       deleteConsultation,
       
       // Vital Signs
       vitalSigns,
+      vitalSignsLoading,
+      vitalSignsError,
       addVitalSigns,
       updateVitalSigns,
       deleteVitalSigns,
@@ -186,10 +211,12 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       
       // Appointments
       appointments,
+      appointmentsLoading,
+      appointmentsError,
       addAppointment,
       updateAppointment,
       deleteAppointment
-    }}>
+      }}>
       {children}
     </DataContext.Provider>
   );

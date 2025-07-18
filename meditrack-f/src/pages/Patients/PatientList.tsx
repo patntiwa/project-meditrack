@@ -1,15 +1,21 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Filter, Plus, Eye, Edit, User } from 'lucide-react';
+import { Search, Plus, Eye, Edit, User } from 'lucide-react';
 import Card from '../../components/Common/Card';
 import Button from '../../components/Common/Button';
 import Input from '../../components/Common/Input';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 
+
+
 const PatientList: React.FC = () => {
   const { user } = useAuth();
-  const { patients } = useData();
+  const { 
+    patients,
+    patientsLoading: isLoading,
+    patientsError: error
+  } = useData();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -71,12 +77,18 @@ const PatientList: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">
             {user?.role === 'admin' ? 'Gestion des patients' : 'Mes patients'}
           </h1>
-          <p className="text-gray-600 mt-1">
-            {filteredPatients.length} patient(s) trouvé(s)
+                    <p className="text-gray-600 mt-1">
+            {isLoading ? (
+              'Chargement...'
+            ) : error ? (
+              <span className="text-red-600">Erreur: {error}</span>
+            ) : (
+              `${filteredPatients.length} patient(s) trouvé(s)`
+            )}
           </p>
         </div>
         {user?.role === 'admin' && (
-          <Button icon={Plus} variant="primary">
+          <Button icon={Plus} variant="primary" disabled={isLoading}>
             Ajouter un patient
           </Button>
         )}

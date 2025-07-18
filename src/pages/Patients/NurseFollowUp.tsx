@@ -9,7 +9,6 @@ import {
   Activity,
   Heart,
   Droplets,
-  Brain,
   User,
   Pill,
   FileText,
@@ -41,7 +40,16 @@ const NurseFollowUp: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { patients, vitalSigns, addVitalSigns, updateVitalSigns } = useData();
+  const { 
+    patients, 
+    patientsLoading,
+    patientsError,
+    vitalSigns, 
+    vitalSignsLoading,
+    vitalSignsError,
+    addVitalSigns, 
+    updateVitalSigns 
+  } = useData();
 
   const [formData, setFormData] = useState<FollowUpData>({
     date: new Date().toISOString().split('T')[0],
@@ -66,6 +74,29 @@ const NurseFollowUp: React.FC = () => {
 
   const patient = patients.find(p => p.id === id);
   const patientVitalSigns = vitalSigns.filter(v => v.patientId === id);
+
+  if (patientsLoading || vitalSignsLoading) {
+    return (
+      <div className="p-6">
+        <div className="text-center">
+          <p className="text-gray-500">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (patientsError || vitalSignsError) {
+    return (
+      <div className="p-6">
+        <div className="text-center">
+          <p className="text-red-500">Erreur: {patientsError || vitalSignsError}</p>
+          <Button onClick={() => navigate('/infirmier/dashboard')} className="mt-4" variant="secondary">
+            Retour au tableau de bord
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     if (id) {
@@ -135,11 +166,16 @@ const NurseFollowUp: React.FC = () => {
       return;
     }
 
+    if (!id) {
+      alert('ID du patient manquant');
+      return;
+    }
+
     // Créer l'objet de suivi
     const followUpData = {
       id: editingFollowUpId || Date.now().toString(),
       patientId: id,
-      nurseId: user?.id,
+      nurseId: user?.id || '',
       date: `${formData.date}T${formData.time}`,
       temperature: parseFloat(formData.temperature),
       bloodPressure: formData.bloodPressure,
