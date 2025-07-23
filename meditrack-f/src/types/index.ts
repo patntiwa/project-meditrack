@@ -1,95 +1,99 @@
 export interface User {
-  id: string;
-  email: string;
+  id: number;
   name: string;
+  email: string;
+  phone?: string;
   role: 'medecin' | 'infirmier' | 'admin';
   specialty?: string;
-  phone?: string;
+  is_active: boolean;
 }
 
 export interface Patient {
-  id: string;
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string;
+  id: number;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string;
   gender: 'M' | 'F';
   phone: string;
   email: string;
   address: string;
-  bloodType: string;
-  allergies: string[];
-  medicalHistory: string[];
-  assignedDoctor: string;
-  assignedNurse: string;
+  blood_type: string;
+  allergies?: string[]; // JSON nullable
+  medical_history?: string[]; // JSON nullable
+  assigned_doctor_id?: number | null;
+  assigned_nurse_id?: number | null;
   status: 'suivi-chronique' | 'aigu' | 'termine';
-  room?: string;
-  lastConsultation?: string;
+  room?: string | null;
+  last_consultation?: string | null;
 }
 
 export interface Consultation {
-  id: string;
-  patientId: string;
-  doctorId: string;
-  date: string;
+  id: number;
+  patient_id: number;
+  doctor_id: number;
+  consultation_date: string;
   symptoms: string;
   diagnosis: string;
   treatment: string;
-  recommendations: string;
+  recommendations?: string;
   prescription?: string;
-  followUp?: string;
-  documents?: string[];
+  follow_up?: string;
+  documents?: number[]; // IDs des documents associés
 }
 
 export interface VitalSigns {
-  id: string;
-  patientId: string;
-  nurseId: string;
-  date: string;
+  id: number;
+  patient_id: number;
+  nurse_id: number;
+  measurement_date: string;
   temperature: number;
-  bloodPressure: string;
-  heartRate: number;
-  oxygenSaturation: number;
+  blood_pressure: string;
+  heart_rate: number;
+  oxygen_saturation: number;
   consciousness: string;
   mobility: string;
   nutrition: string;
-  medicationsAdministered: string[];
-  notes: string;
-  anomalyDetected: boolean;
+  medications_administered?: string[]; // nullable JSON
+  notes?: string;
+  anomaly_detected: boolean;
 }
 
 export interface Document {
-  id: string;
-  patientId: string;
+  id: number;
+  patient_id: number;
   name: string;
   type: 'analysis' | 'radiology' | 'prescription' | 'report' | 'other';
-  url: string;
-  uploadDate: string;
-  uploadedBy: string;
+  file_path: string;
+  mime_type: string;
+  file_size: number;
+  uploaded_by: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Prescription {
-  id: string;
-  patientId: string;
-  doctorId: string;
-  date: string;
-  medications: Medication[];
+  id: number;
+  patient_id: number;
+  doctor_id: number;
+  prescription_date: string;
+  medications: Medication[]; // stocké en JSON
   instructions: string;
 }
 
 export interface Medication {
   name: string;
   dosage: string;
-  frequency: string;
-  duration: string;
-  instructions: string;
+  frequency?: string;
+  duration?: string;
+  instructions?: string;
 }
 
 export interface Appointment {
-  id: string;
-  patientId: string;
-  doctorId: string;
-  date: string;
-  time: string;
+  id: number;
+  patient_id: number;
+  doctor_id: number;
+  appointment_date: string;
+  appointment_time: string;
   reason: string;
   status: 'confirme' | 'annule' | 'reporte';
   notes?: string;

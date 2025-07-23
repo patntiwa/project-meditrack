@@ -9,7 +9,7 @@ import {
   Activity,
   Heart,
   Droplets,
-  Brain,
+
   User,
   Pill,
   FileText,
@@ -19,8 +19,21 @@ import {
 import Card from '../../components/Common/Card';
 import Button from '../../components/Common/Button';
 import Input from '../../components/Common/Input';
-import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePatients } from "../../hooks/usePatients";
+import { useVitalSigns } from "../../hooks/useVitalSigns";
+import { VitalSign } from "../../types";
+
+// Interface étendue pour inclure toutes les propriétés nécessaires
+interface VitalSignWithDetails extends VitalSign {
+  created_at: string;
+  medications: string[];
+  mobility: string;
+  consciousness: string;
+  nutrition: string;
+  notes?: string;
+  anomaly_detected: boolean;
+}
 
 interface FollowUpData {
   date: string;
@@ -41,7 +54,8 @@ const NurseFollowUp: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { patients, vitalSigns, addVitalSigns, updateVitalSigns } = useData();
+  const { patients } = usePatients();
+  const { vitalSigns, addVitalSigns, updateVitalSigns } = useVitalSigns();
 
   const [formData, setFormData] = useState<FollowUpData>({
     date: new Date().toISOString().split('T')[0],
@@ -61,17 +75,16 @@ const NurseFollowUp: React.FC = () => {
   const [newMedication, setNewMedication] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editingFollowUpId, setEditingFollowUpId] = useState<string | null>(null);
-  const [previousFollowUps, setPreviousFollowUps] = useState<any[]>([]);
+  const [previousFollowUps, setPreviousFollowUps] = useState<VitalSignWithDetails[]>([]);
   const [showAlert, setShowAlert] = useState(false);
 
-  const patient = patients.find(p => p.id === id);
-  const patientVitalSigns = vitalSigns.filter(v => v.patientId === id);
+  const patient = patients.find(p => p.id === parseInt(id || "0"));
+  const patientVitalSigns = vitalSigns.filter(v => v.patient_id === parseInt(id || "0")) as VitalSignWithDetails[];
 
   useEffect(() => {
     if (id) {
-      // Simuler la récupération des suivis précédents
       const todayFollowUps = patientVitalSigns.filter(vital => 
-        new Date(vital.date).toDateString() === new Date().toDateString()
+        new Date(vital.created_at).toDateString() === new Date().toDateString()
       );
       setPreviousFollowUps(todayFollowUps);
     }
@@ -128,36 +141,49 @@ const NurseFollowUp: React.FC = () => {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Validation des champs obligatoires
     if (!formData.temperature || !formData.bloodPressure || !formData.heartRate || !formData.oxygenSaturation) {
       alert('Veuillez remplir tous les champs obligatoires (constantes vitales)');
       return;
     }
 
-    // Créer l'objet de suivi
-    const followUpData = {
-      id: editingFollowUpId || Date.now().toString(),
-      patientId: id,
-      nurseId: user?.id,
-      date: `${formData.date}T${formData.time}`,
-      temperature: parseFloat(formData.temperature),
-      bloodPressure: formData.bloodPressure,
-      heartRate: parseInt(formData.heartRate),
-      oxygenSaturation: parseInt(formData.oxygenSaturation),
-      consciousness: formData.consciousness,
-      mobility: formData.mobility,
-      nutrition: formData.nutrition,
-      medicationsAdministered: formData.medicationsAdministered,
-      notes: formData.comments,
-      anomalyDetected: formData.anomalyDetected
-    };
+    try {
+      // Créer l'objet de suivi
+      const followUpData = {
+        id: editingFollowUpId ? parseInt(editingFollowUpId) : undefined,
+        patient_id: parseInt(id || "0"),
+        nurse_id: user?.id,
+        date: `${formData.date}T${formData.time}`,
+        temperature: parseFloat(formData.temperature),
+        blood_pressure: formData.bloodPressure,
+        heart_rate: parseInt(formData.heartRate),
+        oxygen_saturation: parseInt(formData.oxygenSaturation),
+        consciousness: formData.consciousness,
+        mobility: formData.mobility,
+        nutrition: formData.nutrition,
+        medications: formData.medicationsAdministered,
+        notes: formData.comments,
+        anomaly_detected: formData.anomalyDetected
+      };
 
-    // Enregistrer ou modifier le suivi
-    if (isEditing && editingFollowUpId) {
-      updateVitalSigns(editingFollowUpId, followUpData);
-    } else {
-      addVitalSigns(followUpData);
+      // Enregistrer ou modifier le suivi
+      if (isEditing && editingFollowUpId) {
+        await updateVitalSigns(parseInt(editingFollowUpId), followUpData);
+      } else {
+        await addVitalSigns(followUpData);
+      }
+
+      // Si anomalie détectée, simuler l'alerte au médecin
+      if (formData.anomalyDetected) {
+        alert(`Alerte envoyée au médecin responsable du patient ${patient?.firstName} ${patient?.lastName}`);
+      }
+
+      alert(isEditing ? 'Suivi modifié avec succès!' : 'Suivi enregistré avec succès!');
+      navigate('/infirmier/dashboard');
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde :', error);
+      alert('Une erreur est survenue lors de la sauvegarde du suivi');
     }
 
     // Si anomalie détectée, simuler l'alerte au médecin
@@ -169,20 +195,20 @@ const NurseFollowUp: React.FC = () => {
     navigate('/infirmier/dashboard');
   };
 
-  const loadPreviousFollowUp = (followUp: any) => {
+  const loadPreviousFollowUp = (followUp: VitalSignWithDetails) => {
     setFormData({
-      date: new Date(followUp.date).toISOString().split('T')[0],
-      time: new Date(followUp.date).toTimeString().slice(0, 5),
+      date: new Date(followUp.created_at).toISOString().split('T')[0],
+      time: new Date(followUp.created_at).toTimeString().slice(0, 5),
       temperature: followUp.temperature.toString(),
-      bloodPressure: followUp.bloodPressure,
-      heartRate: followUp.heartRate.toString(),
-      oxygenSaturation: followUp.oxygenSaturation.toString(),
+      bloodPressure: followUp.blood_pressure,
+      heartRate: followUp.heart_rate.toString(),
+      oxygenSaturation: followUp.oxygen_saturation.toString(),
       mobility: followUp.mobility,
       consciousness: followUp.consciousness,
       nutrition: followUp.nutrition,
-      medicationsAdministered: followUp.medicationsAdministered,
-      comments: followUp.notes,
-      anomalyDetected: followUp.anomalyDetected
+      medicationsAdministered: followUp.medications || [],
+      comments: followUp.notes || '',
+      anomalyDetected: followUp.anomaly_detected
     });
     setIsEditing(true);
     setEditingFollowUpId(followUp.id);
@@ -522,7 +548,7 @@ const NurseFollowUp: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <Clock className="w-4 h-4 text-gray-500" />
                         <span className="text-sm font-medium text-gray-900">
-                          {new Date(followUp.date).toLocaleTimeString('fr-FR', { 
+                          {new Date(followUp.created_at).toLocaleTimeString('fr-FR', { 
                             hour: '2-digit', 
                             minute: '2-digit' 
                           })}
@@ -539,10 +565,10 @@ const NurseFollowUp: React.FC = () => {
                     </div>
                     <div className="text-xs text-gray-600 space-y-1">
                       <p>T°: {followUp.temperature}°C</p>
-                      <p>TA: {followUp.bloodPressure}</p>
-                      <p>FC: {followUp.heartRate} bpm</p>
-                      <p>SpO₂: {followUp.oxygenSaturation}%</p>
-                      {followUp.anomalyDetected && (
+                      <p>TA: {followUp.blood_pressure}</p>
+                      <p>FC: {followUp.heart_rate} bpm</p>
+                      <p>SpO₂: {followUp.oxygen_saturation}%</p>
+                      {followUp.anomaly_detected && (
                         <div className="flex items-center space-x-1 text-red-600">
                           <AlertTriangle className="w-3 h-3" />
                           <span>Anomalie</span>

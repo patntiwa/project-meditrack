@@ -1,77 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Patient } from '../types';
-import { PatientService } from '../services/PatientService';
-import { useApiState } from './useApiState';
+import * as PatientService from '../services/PatientService';
+import { toast } from 'react-toastify';
 
-export function usePatients() {
+export const usePatients = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
-  const { isLoading, error, setIsLoading, setError } = useApiState();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchPatients = async () => {
+    setLoading(true);
+    try {
+      const data = await PatientService.getAll();
+      setPatients(data);
+      setError(null);
+    } catch (err: any) {
+      const msg = err.message || "Erreur lors du chargement des patients.";
+      toast.error(msg);
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchPatients = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await PatientService.getAll();
-        setPatients(response.data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred while fetching patients');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchPatients();
-  }, [setIsLoading, setError]);
+  }, []);
 
-  const addPatient = async (patient: Patient) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await PatientService.create(patient);
-      setPatients(prev => [...prev, response.data]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while adding patient');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const updatePatient = async (id: string, patient: Partial<Patient>) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await PatientService.update(id, patient);
-      setPatients(prev => prev.map(p => p.id === id ? response.data : p));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while updating patient');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const deletePatient = async (id: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await PatientService.delete(id);
-      setPatients(prev => prev.filter(p => p.id !== id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while deleting patient');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return {
-    patients,
-    isLoading,
-    error,
-    addPatient,
-    updatePatient,
-    deletePatient,
-  };
-}
+  return { patients, loading, error, refetch: fetchPatients };
+};

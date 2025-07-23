@@ -1,12 +1,48 @@
-import { Consultation } from '../types';
 import api from './api';
+import { Consultation } from '../types';
 
-export const ConsultationService = {
-  getAll: () => api.get<Consultation[]>('/api/consultations'),
-  getById: (id: string) => api.get<Consultation>(`/api/consultations/${id}`),
-  create: (consultation: Consultation) => api.post<Consultation>('/api/consultations', consultation),
-  update: (id: string, consultation: Partial<Consultation>) => api.put<Consultation>(`/api/consultations/${id}`, consultation),
-  delete: (id: string) => api.delete(`/api/consultations/${id}`),
-  getToday: () => api.get<Consultation[]>('/api/consultations-today'),
-  getThisMonth: () => api.get<Consultation[]>('/api/consultations-month'),
+const base = '/consultations';
+
+export const getAll = async (): Promise<Consultation[]> => {
+  try {
+    const response = await api.get(base);
+    return response.data.data;
+  } catch {
+    throw new Error("Impossible de récupérer les consultations.");
+  }
+};
+
+export const getById = async (id: number): Promise<Consultation> => {
+  try {
+    const response = await api.get(`${base}/${id}`);
+    return response.data.data;
+  } catch {
+    throw new Error(`Impossible de récupérer la consultation #${id}.`);
+  }
+};
+
+export const create = async (data: Partial<Consultation>): Promise<Consultation> => {
+  try {
+    const response = await api.post(base, data);
+    return response.data.data;
+  } catch {
+    throw new Error("Échec de l'enregistrement de la consultation.");
+  }
+};
+
+export const update = async (id: number, data: Partial<Consultation>): Promise<Consultation> => {
+  try {
+    const response = await api.put(`${base}/${id}`, data);
+    return response.data.data;
+  } catch {
+    throw new Error(`Échec de la mise à jour de la consultation #${id}.`);
+  }
+};
+
+export const remove = async (id: number): Promise<void> => {
+  try {
+    await api.delete(`${base}/${id}`);
+  } catch {
+    throw new Error(`Échec de la suppression de la consultation #${id}.`);
+  }
 };

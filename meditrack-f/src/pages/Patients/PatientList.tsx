@@ -4,63 +4,47 @@ import { Search, Plus, Eye, Edit, User } from 'lucide-react';
 import Card from '../../components/Common/Card';
 import Button from '../../components/Common/Button';
 import Input from '../../components/Common/Input';
-import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
-
-
+import { usePatients } from '../../hooks/usePatients';
 
 const PatientList: React.FC = () => {
   const { user } = useAuth();
-  const { 
-    patients = [],
-    patientsLoading: isLoading,
-    patientsError: error
-  } = useData();
   const navigate = useNavigate();
+
+  const { patients = [], loading: isLoading, error } = usePatients(); // nouveau hook backend
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  // Ajouter un log pour déboguer
-  console.log('Données brutes reçues:', patients);
-
   const filteredPatients = Array.isArray(patients) ? patients.filter(patient => {
-    const matchesSearch = patient.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient.lastName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || patient.status === filterStatus;
-    
-    // Filter by role - doctors see their patients, nurses see assigned patients
-    const matchesRole = user?.role === 'admin' || 
-                       (user?.role === 'medecin' && patient.assignedDoctor === user.id) ||
-                       (user?.role === 'infirmier' && patient.assignedNurse === user.id);
-    
+  const matchesSearch =
+    `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase());
+
+  const matchesStatus = filterStatus === 'all' || patient.status === filterStatus;
+
+  const matchesRole =
+    user?.role === 'admin' ||
+    (user?.role === 'medecin' && patient.assigned_doctor_id === user.id) ||
+    (user?.role === 'infirmier' && patient.assigned_nurse_id === user.id);
+
     return matchesSearch && matchesStatus && matchesRole;
   }) : [];
 
-  console.log('Données filtrées:', filteredPatients);
-
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'suivi-chronique':
-        return 'bg-blue-100 text-blue-800';
-      case 'aigu':
-        return 'bg-red-100 text-red-800';
-      case 'termine':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      case 'suivi-chronique': return 'bg-blue-100 text-blue-800';
+      case 'aigu': return 'bg-red-100 text-red-800';
+      case 'termine': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'suivi-chronique':
-        return 'Suivi chronique';
-      case 'aigu':
-        return 'Aigu';
-      case 'termine':
-        return 'Terminé';
-      default:
-        return status;
+      case 'suivi-chronique': return 'Suivi chronique';
+      case 'aigu': return 'Aigu';
+      case 'termine': return 'Terminé';
+      default: return status;
     }
   };
 
@@ -82,11 +66,11 @@ const PatientList: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">
             {user?.role === 'admin' ? 'Gestion des patients' : 'Mes patients'}
           </h1>
-                    <p className="text-gray-600 mt-1">
+          <p className="text-gray-600 mt-1">
             {isLoading ? (
               'Chargement...'
             ) : error ? (
-              <span className="text-red-600">Erreur: {error}</span>
+              <span className="text-red-600">Erreur : {error}</span>
             ) : (
               `${filteredPatients.length} patient(s) trouvé(s)`
             )}
@@ -101,9 +85,9 @@ const PatientList: React.FC = () => {
 
       <Card>
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex-1">
+          <div className="flex-1 relative">
             <Input
-              placeholder="Rechercher un patient..."
+              placeholder="Rechercher un patient."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -149,15 +133,13 @@ const PatientList: React.FC = () => {
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">
-                          {patient.firstName} {patient.lastName}
+                          {patient.first_name} {patient.last_name}
                         </p>
                         <p className="text-sm text-gray-500">{patient.email}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="py-4 px-4 text-gray-900">
-                    {calculateAge(patient.dateOfBirth)} ans
-                  </td>
+                  <td className="py-4 px-4 text-gray-900">{calculateAge(patient.date_of_birth)} ans</td>
                   <td className="py-4 px-4 text-gray-900">
                     {patient.gender === 'M' ? 'Masculin' : 'Féminin'}
                   </td>
@@ -172,10 +154,9 @@ const PatientList: React.FC = () => {
                     </td>
                   )}
                   <td className="py-4 px-4 text-gray-500">
-                    {patient.lastConsultation 
-                      ? new Date(patient.lastConsultation).toLocaleDateString('fr-FR')
-                      : 'Aucune'
-                    }
+                    {patient.last_consultation
+                      ? new Date(patient.last_consultation).toLocaleDateString('fr-FR')
+                      : 'Aucune'}
                   </td>
                   <td className="py-4 px-4">
                     <div className="flex space-x-2">
@@ -188,8 +169,8 @@ const PatientList: React.FC = () => {
                         </Button>
                       )}
                       {user?.role === 'infirmier' && (
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="primary"
                           onClick={() => navigate(`/patients/${patient.id}/suivi`)}
                         >
@@ -209,7 +190,7 @@ const PatientList: React.FC = () => {
           </table>
         </div>
 
-        {filteredPatients.length === 0 && (
+        {filteredPatients.length === 0 && !isLoading && (
           <div className="text-center py-12">
             <User className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500">Aucun patient trouvé</p>

@@ -1,304 +1,118 @@
-import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { Document, Prescription, Appointment, Patient, Consultation, VitalSigns } from '../types';
-import { usePatients } from '../hooks/usePatients';
-import { useVitalSigns } from '../hooks/useVitalSigns';
-import { useConsultations } from '../hooks/useConsultations';
-import api from '../api';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import {
+  getAll as getAllPatients
+} from '../services/PatientService';
+import {
+  getAll as getAllConsultations
+} from '../services/ConsultationService';
+import {
+  getAll as getAllAppointments
+} from '../services/AppointmentService';
+import {
+  getAll as getAllPrescriptions
+} from '../services/PrescriptionService';
+import {
+  getAll as getAllDocuments
+} from '../services/DocumentService';
+import {
+  getAll as getAllVitalSigns
+} from '../services/VitalSignsService';
+
+import {
+  Patient,
+  Consultation,
+  Appointment,
+  Prescription,
+  Document,
+  VitalSigns
+} from '../types';
+
+import { useAuth } from './AuthContext';
 
 interface DataContextType {
-  // Patients
   patients: Patient[];
-  patientsLoading: boolean;
-  patientsError: string | null;
-  addPatient: (patient: Patient) => Promise<void>;
-  updatePatient: (id: string, patient: Partial<Patient>) => Promise<void>;
-  deletePatient: (id: string) => Promise<void>;
-  
-  // Consultations
   consultations: Consultation[];
-  consultationsLoading: boolean;
-  consultationsError: string | null;
-  addConsultation: (consultation: Consultation) => Promise<void>;
-  updateConsultation: (id: string, consultation: Partial<Consultation>) => Promise<void>;
-  deleteConsultation: (id: string) => Promise<void>;
-  
-  // Vital Signs
-  vitalSigns: VitalSigns[];
-  vitalSignsLoading: boolean;
-  vitalSignsError: string | null;
-  addVitalSigns: (vitalSigns: VitalSigns) => Promise<void>;
-  updateVitalSigns: (id: string, vitalSigns: Partial<VitalSigns>) => Promise<void>;
-  deleteVitalSigns: (id: string) => Promise<void>;
-  
-  // Documents
-  documents: Document[];
-  documentsLoading: boolean;
-  documentsError: string | null;
-  addDocument: (document: Document) => Promise<void>;
-  deleteDocument: (id: string) => Promise<void>;
-  
-  // Prescriptions
-  prescriptions: Prescription[];
-  prescriptionsLoading: boolean;
-  prescriptionsError: string | null;
-  addPrescription: (prescription: Prescription) => Promise<void>;
-  updatePrescription: (id: string, prescription: Partial<Prescription>) => Promise<void>;
-  deletePrescription: (id: string) => Promise<void>;
-  
-  // Appointments
   appointments: Appointment[];
-  appointmentsLoading: boolean;
-  appointmentsError: string | null;
-  addAppointment: (appointment: Appointment) => Promise<void>;
-  updateAppointment: (id: string, appointment: Partial<Appointment>) => Promise<void>;
-  deleteAppointment: (id: string) => Promise<void>;
-}
-
-interface ErrorResponse {
-  message: string;
-}
-
-function isErrorWithMessage(error: unknown): error is ErrorResponse {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'message' in error &&
-    typeof (error as ErrorResponse).message === 'string'
-  );
-}
-
-function getErrorMessage(error: unknown): string {
-  if (isErrorWithMessage(error)) {
-    return error.message;
-  }
-  return 'An unexpected error occurred';
+  prescriptions: Prescription[];
+  documents: Document[];
+  vitalSigns: VitalSigns[];
+  refreshData: () => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-export const useData = () => {
+export const DataProvider = ({ children }: { children: ReactNode }) => {
+  const { user } = useAuth();
+
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [consultations, setConsultations] = useState<Consultation[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [vitalSigns, setVitalSigns] = useState<VitalSigns[]>([]);
+
+  const fetchInitialData = async () => {
+    try {
+      const [
+        patientsData,
+        consultationsData,
+        appointmentsData,
+        prescriptionsData,
+        documentsData,
+        vitalSignsData
+      ] = await Promise.all([
+        getAllPatients(),
+        getAllConsultations(),
+        getAllAppointments(),
+        getAllPrescriptions(),
+        getAllDocuments(),
+        getAllVitalSigns()
+      ]);
+
+      setPatients(patientsData);
+      setConsultations(consultationsData);
+      setAppointments(appointmentsData);
+      setPrescriptions(prescriptionsData);
+      setDocuments(documentsData);
+      setVitalSigns(vitalSignsData);
+    } catch (error) {
+      console.error('Erreur lors du chargement des données :', error);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.token) {
+      fetchInitialData();
+    }
+  }, [user]);
+
+  const refreshData = () => {
+    if (user?.token) {
+      fetchInitialData();
+    }
+  };
+
+  return (
+    <DataContext.Provider
+      value={{
+        patients,
+        consultations,
+        appointments,
+        prescriptions,
+        documents,
+        vitalSigns,
+        refreshData,
+      }}
+    >
+      {children}
+    </DataContext.Provider>
+  );
+};
+
+export const useData = (): DataContextType => {
   const context = useContext(DataContext);
   if (!context) {
     throw new Error('useData must be used within a DataProvider');
   }
   return context;
-};
-
-interface DataProviderProps {
-  children: ReactNode;
-}
-
-export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
-  const patientHook = usePatients();
-  const consultationHook = useConsultations();
-  const vitalSignsHook = useVitalSigns();
-
-  // Documents state
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [documentsLoading, setDocumentsLoading] = useState(false);
-  const [documentsError, setDocumentsError] = useState<string | null>(null);
-
-  const handleAddDocument = async (document: Document) => {
-    setDocumentsLoading(true);
-    setDocumentsError(null);
-    try {
-      const response = await api.post('/api/documents', document);
-      setDocuments(prev => [...prev, response.data]);
-    } catch (err) {
-      setDocumentsError(getErrorMessage(err));
-      throw err;
-    } finally {
-      setDocumentsLoading(false);
-    }
-  };
-
-  const handleDeleteDocument = async (id: string) => {
-    setDocumentsLoading(true);
-    setDocumentsError(null);
-    try {
-      await api.delete(`/api/documents/${id}`);
-      setDocuments(prev => prev.filter(doc => doc.id !== id));
-    } catch (err) {
-      setDocumentsError(getErrorMessage(err));
-      throw err;
-    } finally {
-      setDocumentsLoading(false);
-    }
-  };
-
-  // Prescriptions state
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
-  const [prescriptionsLoading, setPrescriptionsLoading] = useState(false);
-  const [prescriptionsError, setPrescriptionsError] = useState<string | null>(null);
-
-  const handleAddPrescription = async (prescription: Prescription) => {
-    setPrescriptionsLoading(true);
-    setPrescriptionsError(null);
-    try {
-      const response = await api.post('/api/prescriptions', prescription);
-      setPrescriptions(prev => [...prev, response.data]);
-    } catch (err) {
-      setPrescriptionsError(getErrorMessage(err));
-      throw err;
-    } finally {
-      setPrescriptionsLoading(false);
-    }
-  };
-
-  const handleUpdatePrescription = async (id: string, prescription: Partial<Prescription>) => {
-    setPrescriptionsLoading(true);
-    setPrescriptionsError(null);
-    try {
-      const response = await api.put(`/api/prescriptions/${id}`, prescription);
-      setPrescriptions(prev => prev.map(p => p.id === id ? response.data : p));
-    } catch (err) {
-      setPrescriptionsError(getErrorMessage(err));
-      throw err;
-    } finally {
-      setPrescriptionsLoading(false);
-    }
-  };
-
-  const handleDeletePrescription = async (id: string) => {
-    setPrescriptionsLoading(true);
-    setPrescriptionsError(null);
-    try {
-      await api.delete(`/api/prescriptions/${id}`);
-      setPrescriptions(prev => prev.filter(p => p.id !== id));
-    } catch (err) {
-      setPrescriptionsError(getErrorMessage(err));
-      throw err;
-    } finally {
-      setPrescriptionsLoading(false);
-    }
-  };
-
-  // Appointments state
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [appointmentsLoading, setAppointmentsLoading] = useState(false);
-  const [appointmentsError, setAppointmentsError] = useState<string | null>(null);
-
-  const handleAddAppointment = async (appointment: Appointment) => {
-    setAppointmentsLoading(true);
-    setAppointmentsError(null);
-    try {
-      const response = await api.post('/api/appointments', appointment);
-      setAppointments(prev => [...prev, response.data]);
-    } catch (err) {
-      setAppointmentsError(getErrorMessage(err));
-      throw err;
-    } finally {
-      setAppointmentsLoading(false);
-    }
-  };
-
-  const handleUpdateAppointment = async (id: string, appointment: Partial<Appointment>) => {
-    setAppointmentsLoading(true);
-    setAppointmentsError(null);
-    try {
-      const response = await api.put(`/api/appointments/${id}`, appointment);
-      setAppointments(prev => prev.map(a => a.id === id ? response.data : a));
-    } catch (err) {
-      setAppointmentsError(getErrorMessage(err));
-      throw err;
-    } finally {
-      setAppointmentsLoading(false);
-    }
-  };
-
-  const handleDeleteAppointment = async (id: string) => {
-    setAppointmentsLoading(true);
-    setAppointmentsError(null);
-    try {
-      await api.delete(`/api/appointments/${id}`);
-      setAppointments(prev => prev.filter(a => a.id !== id));
-    } catch (err) {
-      setAppointmentsError(getErrorMessage(err));
-      throw err;
-    } finally {
-      setAppointmentsLoading(false);
-    }
-  };
-
-  // Load initial data
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      setDocumentsLoading(true);
-      setPrescriptionsLoading(true);
-      setAppointmentsLoading(true);
-      try {
-        const [documentsRes, prescriptionsRes, appointmentsRes] = await Promise.all([
-          api.get('/api/documents'),
-          api.get('/api/prescriptions'),
-          api.get('/api/appointments')
-        ]);
-
-        setDocuments(documentsRes.data);
-        setPrescriptions(prescriptionsRes.data);
-        setAppointments(appointmentsRes.data);
-      } catch (err) {
-        const errorMessage = getErrorMessage(err);
-        setDocumentsError(errorMessage);
-        setPrescriptionsError(errorMessage);
-        setAppointmentsError(errorMessage);
-      } finally {
-        setDocumentsLoading(false);
-        setPrescriptionsLoading(false);
-        setAppointmentsLoading(false);
-      }
-    };
-
-    fetchInitialData();
-  }, []);
-
-  const contextValue: DataContextType = {
-    // Patients
-    patients: patientHook.patients,
-    patientsLoading: patientHook.isLoading,
-    patientsError: patientHook.error,
-    addPatient: patientHook.addPatient,
-    updatePatient: patientHook.updatePatient,
-    deletePatient: patientHook.deletePatient,
-
-    // Consultations
-    consultations: consultationHook.consultations,
-    consultationsLoading: consultationHook.isLoading,
-    consultationsError: consultationHook.error,
-    addConsultation: consultationHook.addConsultation,
-    updateConsultation: consultationHook.updateConsultation,
-    deleteConsultation: consultationHook.deleteConsultation,
-
-    // Vital Signs
-    vitalSigns: vitalSignsHook.vitalSigns,
-    vitalSignsLoading: vitalSignsHook.isLoading,
-    vitalSignsError: vitalSignsHook.error,
-    addVitalSigns: vitalSignsHook.addVitalSigns,
-    updateVitalSigns: vitalSignsHook.updateVitalSigns,
-    deleteVitalSigns: vitalSignsHook.deleteVitalSigns,
-
-    // Documents
-    documents,
-    documentsLoading,
-    documentsError,
-    addDocument: handleAddDocument,
-    deleteDocument: handleDeleteDocument,
-
-    // Prescriptions
-    prescriptions,
-    prescriptionsLoading,
-    prescriptionsError,
-    addPrescription: handleAddPrescription,
-    updatePrescription: handleUpdatePrescription,
-    deletePrescription: handleDeletePrescription,
-
-    // Appointments
-    appointments,
-    appointmentsLoading,
-    appointmentsError,
-    addAppointment: handleAddAppointment,
-    updateAppointment: handleUpdateAppointment,
-    deleteAppointment: handleDeleteAppointment,
-  };
-
-  return <DataContext.Provider value={contextValue}>{children}</DataContext.Provider>;
 };

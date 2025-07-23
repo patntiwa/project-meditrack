@@ -1,94 +1,95 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import api from '../api';
-import { User } from '../types';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import api from "../services/api";
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string;
+  role: "admin" | "medecin" | "infirmier";
+}
 
 interface AuthContextType {
   user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<User | null>;
-  logout: () => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
+  logout: () => void;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
-};
-
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  // Chargement initial : vérifier session existante
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await api.get('/api/user');
-        setUser(response.data);
-        setIsAuthenticated(true);
-      } catch {
-        setUser(null);
-        setIsAuthenticated(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchUser();
-  }, []);
-
-  const login = async (email: string, password: string): Promise<User | null> => {
+  const fetchUser = async () => {
     try {
-      await api.get('/sanctum/csrf-cookie'); // Obligatoire pour Sanctum
-      const loginResponse = await api.post('/api/login', { email, password });
-      
-      console.log('Réponse complète du login:', loginResponse.data);
-      
-      if (!loginResponse.data) {
-        throw new Error('Pas de données reçues du serveur');
-      }
-
-      // La réponse contient directement l'utilisateur
-      const userData = loginResponse.data.user;
-      
-      if (!userData) {
-        throw new Error('Pas de données utilisateur dans la réponse');
-      }
-
-      // Stockage du token
-      const token = loginResponse.data.token;
-      if (token) {
-        // Si vous avez besoin de stocker le token quelque part
-        localStorage.setItem('token', token);
-      }
-      
-      setUser(userData);
-      setIsAuthenticated(true);
-      return userData;
-    } catch (err) {
-      console.error('Login failed:', err);
+      const response = await api.get("/api/user");
+      setUser(response.data);
+    } catch (error) {
+      console.error("Erreur lors de la récupération de l'utilisateur :", error);
       setUser(null);
-      setIsAuthenticated(false);
-      throw err;
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const login = async (email: string, password: string): Promise<User> => {
+    await api.get("/sanctum/csrf-cookie");
+
+    const response = await api.post("/api/login", {
+      email,
+      password,
+    });
+
+    const { accessToken, user: userData } = response.data;
+
+    localStorage.setItem("token", accessToken);
+    api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+    setUser(userData);
+
+    return userData;
   };
 
   const logout = async () => {
     try {
-      await api.post('/api/logout');
-    } catch (err) {
-      console.error('Logout failed:', err);
+      await api.post("/api/logout");
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion :", error);
+    } finally {
+      localStorage.removeItem("token");
+      setUser(null);
     }
-    setUser(null);
-    setIsAuthenticated(false);
   };
 
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (token) {
+      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      fetchUser();
+    } else {
+      setLoading(false);
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
 };
