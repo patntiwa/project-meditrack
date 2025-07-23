@@ -10,6 +10,15 @@ use App\Http\Controllers\Api\ConsultationController;
 use App\Http\Controllers\Api\VitalSignController;
 use App\Http\Controllers\Api\DocumentController;
 
+
+// Cette route gère les requêtes OPTIONS pour toutes les routes API.
+// Elle doit être placée avant les routes protégées par auth:sanctum
+// pour s'assurer que les requêtes preflight ne sont pas interceptées par l'authentification.
+Route::options('{any}', function () {
+    return response()->json([], 200);
+})->where('any', '.*');
+
+
 /*
 |--------------------------------------------------------------------------
 | Routes API publiques

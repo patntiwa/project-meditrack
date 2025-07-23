@@ -18,6 +18,8 @@ import {
   getAll as getAllVitalSigns
 } from '../services/VitalSignsService';
 
+import { DataContextType } from '../types';
+
 import {
   Patient,
   Consultation,
@@ -27,17 +29,7 @@ import {
   VitalSigns
 } from '../types';
 
-import { useAuth } from './AuthContext';
-
-interface DataContextType {
-  patients: Patient[];
-  consultations: Consultation[];
-  appointments: Appointment[];
-  prescriptions: Prescription[];
-  documents: Document[];
-  vitalSigns: VitalSigns[];
-  refreshData: () => void;
-}
+import { useAuth } from '../hooks/useAuth';
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 

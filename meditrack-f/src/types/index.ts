@@ -6,6 +6,9 @@ export interface User {
   role: 'medecin' | 'infirmier' | 'admin';
   specialty?: string;
   is_active: boolean;
+  token?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Patient {
@@ -25,6 +28,8 @@ export interface Patient {
   status: 'suivi-chronique' | 'aigu' | 'termine';
   room?: string | null;
   last_consultation?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Consultation {
@@ -39,6 +44,8 @@ export interface Consultation {
   prescription?: string;
   follow_up?: string;
   documents?: number[]; // IDs des documents associés
+  created_at: string;
+  updated_at: string;
 }
 
 export interface VitalSigns {
@@ -56,6 +63,8 @@ export interface VitalSigns {
   medications_administered?: string[]; // nullable JSON
   notes?: string;
   anomaly_detected: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Document {
@@ -86,6 +95,8 @@ export interface Medication {
   frequency?: string;
   duration?: string;
   instructions?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Appointment {
@@ -97,4 +108,19 @@ export interface Appointment {
   reason: string;
   status: 'confirme' | 'annule' | 'reporte';
   notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DataContextType {
+  patients: Patient[];
+  consultations: Consultation[];
+  appointments: Appointment[];
+  prescriptions: Prescription[];
+  documents: Document[];
+  vitalSigns: VitalSigns[];
+  refreshData: () => void;
+  fetchAppointments: () => Promise<Appointment[]>;
+  fetchVitalSigns: () => Promise<VitalSigns[]>;
+  // ajoute ici d'autres fetch si nécessaire
 }

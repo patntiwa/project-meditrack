@@ -1,95 +1,97 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  ReactNode,
-} from "react";
-import api from "../services/api";
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  phone?: string;
-  role: "admin" | "medecin" | "infirmier";
-}
+import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import api from '../api';
+import { User } from '../types';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<User>;
-  logout: () => void;
-  loading: boolean;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<User | null>;
+  logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// EXPORTATION DE AUTHCONTEXT LUI-MÊME POUR POUVOIR L'IMPORTER DANS useAuth.ts
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+// useAuth EST DÉSORMAIS DANS UN AUTRE FICHIER, PLUS BESOIN ICI
+
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const fetchUser = async () => {
-    try {
-      const response = await api.get("/api/user");
-      setUser(response.data);
-    } catch (error) {
-      console.error("Erreur lors de la récupération de l'utilisateur :", error);
-      setUser(null);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await api.get('/api/user');
+        setUser(response.data);
+        setIsAuthenticated(true);
+      } catch {
+        setUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    const token = localStorage.getItem('token');
+    if (token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        fetchUser();
+    } else {
+        setIsLoading(false);
     }
-  };
+  }, []);
 
-  const login = async (email: string, password: string): Promise<User> => {
-    await api.get("/sanctum/csrf-cookie");
+  const login = async (email: string, password: string): Promise<User | null> => {
+    try {
+      await api.get('/sanctum/csrf-cookie');
+      const loginResponse = await api.post('/api/login', { email, password });
 
-    const response = await api.post("/api/login", {
-      email,
-      password,
-    });
+      console.log('Réponse complète du login:', loginResponse.data);
 
-    const { accessToken, user: userData } = response.data;
+      if (!loginResponse.data) {
+        throw new Error('Pas de données reçues du serveur');
+      }
 
-    localStorage.setItem("token", accessToken);
-    api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
-    setUser(userData);
+      const { user: userData, accessToken } = loginResponse.data;
 
-    return userData;
+      if (!userData) {
+        throw new Error('Pas de données utilisateur dans la réponse');
+      }
+
+      if (accessToken) {
+        localStorage.setItem('token', accessToken);
+        api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+      } else {
+          console.warn('Le token n\'a pas été reçu dans la réponse du login.');
+      }
+
+      setUser(userData);
+      setIsAuthenticated(true);
+      return userData;
+    } catch (err) {
+      console.error('Login failed:', err);
+      setUser(null);
+      setIsAuthenticated(false);
+      throw err;
+    }
   };
 
   const logout = async () => {
     try {
-      await api.post("/api/logout");
-    } catch (error) {
-      console.error("Erreur lors de la déconnexion :", error);
+      await api.post('/api/logout');
+    } catch (err) {
+      console.error('Logout failed:', err);
     } finally {
-      localStorage.removeItem("token");
-      setUser(null);
+        localStorage.removeItem('token');
+        setUser(null);
+        setIsAuthenticated(false);
     }
   };
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    if (token) {
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      fetchUser();
-    } else {
-      setLoading(false);
-    }
-  }, []);
-
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
 };

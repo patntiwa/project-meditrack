@@ -4,31 +4,47 @@ import { Search, Plus, Eye, Edit, User } from 'lucide-react';
 import Card from '../../components/Common/Card';
 import Button from '../../components/Common/Button';
 import Input from '../../components/Common/Input';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { usePatients } from '../../hooks/usePatients';
 
-const PatientList: React.FC = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const PatientList: React.FC = () => {
+    const { user } = useAuth();
+    const navigate = useNavigate();
 
-  const { patients = [], loading: isLoading, error } = usePatients(); // nouveau hook backend
+    const { patients = [], loading: isLoading, error } = usePatients();
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterStatus, setFilterStatus] = useState('all');
 
-  const filteredPatients = Array.isArray(patients) ? patients.filter(patient => {
-  const matchesSearch =
-    `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase());
+    const filteredPatients = Array.isArray(patients) ? patients.filter(patient => {
+      const matchesSearch =
+        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase());
 
-  const matchesStatus = filterStatus === 'all' || patient.status === filterStatus;
+      const matchesStatus = filterStatus === 'all' || patient.status === filterStatus;
 
-  const matchesRole =
-    user?.role === 'admin' ||
-    (user?.role === 'medecin' && patient.assigned_doctor_id === user.id) ||
-    (user?.role === 'infirmier' && patient.assigned_nurse_id === user.id);
+      const matchesRole =
+        user?.role === 'admin' ||
+        (user?.role === 'medecin' && patient.assigned_doctor_id === user.id) ||
+        (user?.role === 'infirmier' && patient.assigned_nurse_id === user.id);
 
-    return matchesSearch && matchesStatus && matchesRole;
-  }) : [];
+      return matchesSearch && matchesStatus && matchesRole;
+    }) : [];
+
+    if (isLoading) {
+    return (
+      <div className="p-6">
+        <p className="text-gray-500 text-center">Chargement des patients...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <p className="text-red-600 text-center">Erreur lors du chargement : {error}</p>
+      </div>
+    );
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -193,7 +209,7 @@ const PatientList: React.FC = () => {
         {filteredPatients.length === 0 && !isLoading && (
           <div className="text-center py-12">
             <User className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">Aucun patient trouvé</p>
+            <p className="text-gray-500 py-6">Aucun patient trouvé</p>
           </div>
         )}
       </Card>

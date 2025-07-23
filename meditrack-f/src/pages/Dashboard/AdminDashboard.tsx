@@ -2,53 +2,48 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, AlertTriangle, Users, TrendingUp, Clock, Activity } from 'lucide-react';
 import Card from '../../components/Common/Card';
 import Button from '../../components/Common/Button';
-import { useData } from '../../contexts/DataContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { usePatients } from '../../hooks/usePatients';
+import { useConsultations } from '../../hooks/useConsultations';
+import { usePrescriptions } from '../../hooks/usePrescriptions';
+import { useDocuments } from '../../hooks/useDocuments';
+import { useAuth } from '../../hooks/useAuth';
+import { Appointment, Patient, Consultation } from '../../types';
 
-const DoctorDashboard: React.FC = () => {
+const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
-  const { patients = [], consultations = [], getAppointments } = useData();
-  const [appointments, setAppointments] = useState([]);
-  const [loadingAppointments, setLoadingAppointments] = useState(true);
-  const [errorAppointments, setErrorAppointments] = useState<Error | null>(null);
+  const { patients = [] } = usePatients();
+  const { consultations = [] } = useConsultations();
+  const { prescriptions = [] } = usePrescriptions();
+  const { documents = [] } = useDocuments();
+
+  const [localAppointments, setLocalAppointments] = useState<Appointment[]>([]);
 
   useEffect(() => {
-    const fetchAppointments = async () => {
+    // À remplacer par un hook `useAppointments` si disponible
+    const fetchData = async () => {
       try {
-        setLoadingAppointments(true);
-        const response = await getAppointments();
-
-        if (Array.isArray(response)) {
-          setAppointments(response);
-        } else if (response?.data && Array.isArray(response.data)) {
-          setAppointments(response.data);
-        } else {
-          console.warn("La réponse de l'API des rendez-vous n'est pas un tableau attendu:", response);
-          setAppointments([]);
-        }
+        const res = await fetch('/api/appointments'); // temporaire
+        const data = await res.json();
+        setLocalAppointments(data);
       } catch (err) {
-        console.error("Erreur lors de la récupération des rendez-vous:", err);
-        setErrorAppointments(err instanceof Error ? err : new Error('Erreur inconnue'));
-        setAppointments([]);
-      } finally {
-        setLoadingAppointments(false);
+        console.error('Erreur lors de la récupération des rendez-vous:', err);
+        setLocalAppointments([]);
       }
     };
+    fetchData();
+  }, []);
 
-    fetchAppointments();
-  }, [getAppointments]);
-
-  const todayAppointments = appointments.filter(apt =>
-    new Date(apt.date).toDateString() === new Date().toDateString()
+  const todayAppointments = localAppointments.filter(apt =>
+    new Date(apt.appointment_date).toDateString() === new Date().toDateString()
   );
 
-  const criticalPatients = patients.filter(patient =>
+  const criticalPatients = patients.filter((patient: Patient) =>
     patient.status === 'aigu'
   );
 
   const monthlyStats = {
     consultations: consultations.length,
-    chronicPatients: patients.filter(p => p.status === 'suivi-chronique').length,
+    chronicPatients: patients.filter((p: Patient) => p.status === 'suivi-chronique').length,
     totalPatients: patients.length
   };
 
@@ -57,7 +52,7 @@ const DoctorDashboard: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Tableau de bord</h1>
-          <p className="text-gray-600 mt-1">Bienvenue, {user?.name || 'Docteur'}</p>
+          <p className="text-gray-600 mt-1">Bienvenue, {user?.name || 'Administrateur'}</p>
         </div>
         <Button icon={Activity} variant="primary">
           Nouvelle consultation
@@ -111,8 +106,8 @@ const DoctorDashboard: React.FC = () => {
                 <p className="text-gray-500">Aucun rendez-vous aujourd'hui</p>
               </div>
             ) : (
-              todayAppointments.map((appointment: any) => {
-                const patient = patients.find((p: any) => p.id === appointment.patient_id);
+              todayAppointments.map((appointment: Appointment) => {
+                const patient = patients.find((p: Patient) => p.id === appointment.patient_id);
                 return (
                   <div key={appointment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div className="flex items-center space-x-4">
@@ -129,7 +124,7 @@ const DoctorDashboard: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium text-gray-900">{appointment.time}</p>
+                      <p className="font-medium text-gray-900">{appointment.appointment_time}</p>
                       <p className="text-sm text-gray-500">{appointment.status}</p>
                     </div>
                   </div>
@@ -147,7 +142,7 @@ const DoctorDashboard: React.FC = () => {
                 <p className="text-gray-500">Aucune alerte critique</p>
               </div>
             ) : (
-              criticalPatients.map((patient: any) => (
+              criticalPatients.map((patient: Patient) => (
                 <div key={patient.id} className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
                   <div className="flex items-center space-x-4">
                     <div className="w-10 h-10 bg-gradient-to-br from-red-400 to-orange-500 rounded-full flex items-center justify-center">
@@ -172,8 +167,8 @@ const DoctorDashboard: React.FC = () => {
 
       <Card title="Activité récente">
         <div className="space-y-4">
-          {consultations.slice(0, 3).map((consultation: any) => {
-            const patient = patients.find(p => p.id === consultation.patient_id);
+          {consultations.slice(0, 3).map((consultation: Consultation) => {
+            const patient = patients.find((p: Patient) => p.id === consultation.patient_id);
             return (
               <div key={consultation.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-4">
@@ -188,7 +183,7 @@ const DoctorDashboard: React.FC = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-500">{consultation.date}</p>
+                  <p className="text-sm text-gray-500">{consultation.consultation_date}</p>
                 </div>
               </div>
             );
@@ -199,4 +194,4 @@ const DoctorDashboard: React.FC = () => {
   );
 };
 
-export default DoctorDashboard;
+export default AdminDashboard;

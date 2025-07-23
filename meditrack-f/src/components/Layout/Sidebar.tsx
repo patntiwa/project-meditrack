@@ -14,7 +14,7 @@ import {
   Stethoscope,
   Shield
 } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 
 const Sidebar: React.FC = () => {
   const { user, logout } = useAuth();

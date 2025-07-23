@@ -1,48 +1,39 @@
 import axios from 'axios';
 
-// Utilitaire pour lire les cookies manuellement
-function getCookie(name: string): string | null {
-  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-  return match ? decodeURIComponent(match[2]) : null;
-}
-
 const api = axios.create({
-  baseURL: 'http://localhost:8000',
-  withCredentials: true,
+  baseURL: 'http://localhost:8000/api', // Assurez-vous que c'est l'URL correcte de votre backend Laravel
+  withCredentials: true, // Essentiel pour Laravel Sanctum
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-    'X-Requested-With': 'XMLHttpRequest'
-  }
+  },
 });
 
-// Intercepteur pour attacher XSRF et token Bearer
-api.interceptors.request.use((config) => {
-  const csrfToken = getCookie('XSRF-TOKEN');
-  if (csrfToken) {
-    config.headers['X-XSRF-TOKEN'] = csrfToken;
-  }
-
-  const bearerToken = localStorage.getItem('token');
-  if (bearerToken) {
-    config.headers['Authorization'] = `Bearer ${bearerToken}`;
-  }
-
-  return config;
-});
-
-// Intercepteur de réponse : redirection si 401
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Supprime le token et redirige
-      localStorage.removeItem("token");
-      window.location.href = "/login"; //  forcé, hors React Router
+// Intercepteur pour ajouter le token d'authentification
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
+    return config;
+  },
+  (error) => {
     return Promise.reject(error);
   }
 );
 
+// Intercepteur pour gérer les erreurs de réponse
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Gérer la déconnexion ou la redirection vers la page de connexion
+      // Ceci devrait être géré par votre AuthContext ou un router.
+      console.error("Non autorisé, déconnexion ou redirection nécessaire.");
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;
