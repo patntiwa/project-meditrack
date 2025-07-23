@@ -15,7 +15,7 @@ class UserSeeder extends Seeder
     {
         // Médecin
         User::create([
-            'name' => 'Dr. Marie Dubois',
+            'name' => 'Dr. Ntiwa Patrick',
             'email' => 'medecin@hospital.com',
             'password' => Hash::make('password'),
             'role' => 'medecin',
@@ -26,7 +26,7 @@ class UserSeeder extends Seeder
 
         // Infirmier
         User::create([
-            'name' => 'Jean Martin',
+            'name' => 'Jean Essomba',
             'email' => 'infirmier@hospital.com',
             'password' => Hash::make('password'),
             'role' => 'infirmier',
@@ -36,7 +36,7 @@ class UserSeeder extends Seeder
 
         // Administrateur
         User::create([
-            'name' => 'Sophie Lambert',
+            'name' => 'Mouda Linda',
             'email' => 'admin@hospital.com',
             'password' => Hash::make('password'),
             'role' => 'admin',

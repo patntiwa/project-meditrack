@@ -4,66 +4,47 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PatientController;
-use App\Http\Controllers\Api\VitalSignController;
-use App\Http\Controllers\Api\ConsultationController;
-use App\Http\Controllers\Api\DashboardController;
-use App\Http\Controllers\Api\DocumentController;
-use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\AppointmentController;
+use App\Http\Controllers\Api\PrescriptionController;
+use App\Http\Controllers\Api\ConsultationController;
+use App\Http\Controllers\Api\VitalSignController;
+use App\Http\Controllers\Api\DocumentController;
 
 /*
 |--------------------------------------------------------------------------
-| API Routes
+| Routes API publiques
 |--------------------------------------------------------------------------
+| Ces routes sont accessibles sans authentification.
 */
 
-// Routes publiques
+Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
-// Routes protégées
+/*
+|--------------------------------------------------------------------------
+| Routes protégées par Sanctum (auth:sanctum)
+|--------------------------------------------------------------------------
+| L'utilisateur doit être connecté avec un token pour accéder à ces routes.
+*/
+
 Route::middleware('auth:sanctum')->group(function () {
-    // Authentification
+
+    // Déconnexion
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/user', [AuthController::class, 'user']);
-    Route::put('/profile', [AuthController::class, 'updateProfile']);
 
-    // Dashboard
-    Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
-    Route::get('/dashboard/recent-activity', [DashboardController::class, 'recentActivity']);
-    Route::get('/dashboard/alerts', [DashboardController::class, 'alerts']);
+    // Vérifier le token
+    Route::get('/user', function (Request $request) {
+        return response()->json([
+            'status' => 'success',
+            'user' => $request->user()
+        ]);
+    });
 
-    // Patients
+    // CRUD API pour chaque entité
     Route::apiResource('patients', PatientController::class);
-
-    // Signes vitaux
-    Route::apiResource('vital-signs', VitalSignController::class);
-    Route::get('/patients/{patient}/vital-signs/today', [VitalSignController::class, 'todayByPatient']);
-    Route::get('/vital-signs-alerts', [VitalSignController::class, 'alerts']);
-
-    // Consultations
-    Route::apiResource('consultations', ConsultationController::class);
-    Route::get('/consultations-today', [ConsultationController::class, 'today']);
-    Route::get('/consultations-month', [ConsultationController::class, 'thisMonth']);
-
-    // Documents
-    Route::apiResource('documents', DocumentController::class);
-
-    // Prescriptions
-    Route::apiResource('prescriptions', PrescriptionController::class);
-
-    // Appointments
     Route::apiResource('appointments', AppointmentController::class);
-
-    // Routes spécifiques par rôle
-    Route::middleware('role:medecin')->group(function () {
-        // Routes réservées aux médecins
-    });
-
-    Route::middleware('role:infirmier')->group(function () {
-        // Routes réservées aux infirmiers
-    });
-
-    Route::middleware('role:admin')->group(function () {
-        // Routes réservées aux administrateurs
-    });
+    Route::apiResource('prescriptions', PrescriptionController::class);
+    Route::apiResource('consultations', ConsultationController::class);
+    Route::apiResource('vital-signs', VitalSignController::class);
+    Route::apiResource('documents', DocumentController::class);
 });

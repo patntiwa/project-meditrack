@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, AlertTriangle, Users, TrendingUp, Clock, Activity } from 'lucide-react';
 import Card from '../../components/Common/Card';
 import Button from '../../components/Common/Button';
@@ -7,7 +7,34 @@ import { useAuth } from '../../contexts/AuthContext';
 
 const DoctorDashboard: React.FC = () => {
   const { user } = useAuth();
-  const { patients, consultations, appointments } = useData();
+  const { patients = [], consultations = [], getAppointments } = useData();
+  const [appointments, setAppointments] = useState([]);
+  const [loadingAppointments, setLoadingAppointments] = useState(true);
+  const [errorAppointments, setErrorAppointments] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        setLoadingAppointments(true);
+        const response = await getAppointments();
+        if (Array.isArray(response)) {
+          setAppointments(response);
+        } else if (response?.data && Array.isArray(response.data)) {
+          setAppointments(response.data);
+        } else {
+          console.warn("La réponse de l'API des rendez-vous n'est pas un tableau attendu:", response);
+          setAppointments([]);
+        }
+      } catch (err) {
+        console.error("Erreur lors de la récupération des rendez-vous:", err);
+        setErrorAppointments(err instanceof Error ? err : new Error('Erreur inconnue'));
+        setAppointments([]);
+      } finally {
+        setLoadingAppointments(false);
+      }
+    };
+    fetchAppointments();
+  }, [getAppointments]);
   
   const todayAppointments = appointments.filter(apt => 
     new Date(apt.date).toDateString() === new Date().toDateString()

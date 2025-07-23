@@ -5,7 +5,7 @@ import Button from '../../components/Common/Button';
 import { useData } from '../../contexts/DataContext';
 
 const AdminDashboard: React.FC = () => {
-  const { patients, consultations, appointments } = useData();
+  const { patients = [], consultations = [], appointments = [] } = useData();
   
   const globalStats = {
     totalPatients: patients.length,
