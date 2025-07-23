@@ -4,36 +4,38 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\VitalSign;
-use App\Models\Patient;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class VitalSignController extends Controller
 {
-    /**
-     * Liste des signes vitaux
-     */
     public function index(Request $request)
     {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
         $query = VitalSign::with(['patient', 'nurse']);
 
-        // Filtrage par patient
+        // ✅ Filtrage par patient
         if ($request->filled('patient_id')) {
-            $query->byPatient($request->patient_id);
+            $query->byPatient($request->input('patient_id'));
         }
 
-        // Filtrage par infirmier
-        $user = $request->user();
-        if ($user->role === 'infirmier') {
-            $query->byNurse($user->id);
+        // ✅ Filtrage pour l'infirmier connecté
+        if ($user->getAttribute('role') === 'infirmier') {
+            $query->byNurse($user->getAttribute('id'));
         }
 
-        // Filtrage par date
+        // ✅ Filtrage par date
         if ($request->filled('date')) {
-            $query->whereDate('measurement_date', $request->date);
+            $query->whereDate('measurement_date', $request->input('date'));
         }
 
-        // Filtrage par anomalies
-        if ($request->filled('anomalies_only') && $request->anomalies_only) {
+        // ✅ Filtrage pour anomalies
+        if ($request->filled('anomalies_only') && $request->boolean('anomalies_only')) {
             $query->withAnomalies();
         }
 
@@ -46,23 +48,11 @@ class VitalSignController extends Controller
         ], 200);
     }
 
-    /**
-     * Détails d'un signe vital
-     */
-    public function show(VitalSign $vitalSign)
-    {
-        $vitalSign->load(['patient', 'nurse']);
 
-        return response()->json($vitalSign);
-    }
-
-    /**
-     * Créer un nouveau signe vital
-     */
     public function store(Request $request)
     {
-        $request->validate([
-            'patient_id' => 'required|exists:patients,id',
+        $validated = $request->validate([
+            'patient_id' => 'required|exists:users,id',
             'measurement_date' => 'required|date',
             'temperature' => 'required|numeric|between:30,45',
             'blood_pressure' => 'required|string',
@@ -76,84 +66,75 @@ class VitalSignController extends Controller
             'anomaly_detected' => 'boolean',
         ]);
 
-        $vitalSign = VitalSign::create([
-            ...$request->all(),
-            'nurse_id' => $request->user()->id,
-        ]);
-
-        // Mettre à jour la date de dernière consultation du patient
-        $patient = Patient::find($request->patient_id);
-        $patient->update(['last_consultation' => now()]);
-
-        return response()->json($vitalSign->load(['patient', 'nurse']), 201);
-    }
-
-    /**
-     * Mettre à jour un signe vital
-     */
-    public function update(Request $request, VitalSign $vitalSign)
-    {
-        $request->validate([
-            'measurement_date' => 'required|date',
-            'temperature' => 'required|numeric|between:30,45',
-            'blood_pressure' => 'required|string',
-            'heart_rate' => 'required|integer|between:30,200',
-            'oxygen_saturation' => 'required|integer|between:70,100',
-            'consciousness' => 'required|string',
-            'mobility' => 'required|string',
-            'nutrition' => 'required|string',
-            'medications_administered' => 'nullable|array',
-            'notes' => 'nullable|string',
-            'anomaly_detected' => 'boolean',
-        ]);
-
-        $vitalSign->update($request->all());
-
-        return response()->json($vitalSign->load(['patient', 'nurse']));
-    }
-
-    /**
-     * Supprimer un signe vital
-     */
-    public function destroy(VitalSign $vitalSign)
-    {
-        $vitalSign->delete();
+        $vital = VitalSign::create(array_merge($validated, [
+            'nurse_id' => Auth::id(),
+        ]));
 
         return response()->json([
-            'message' => 'Signe vital supprimé avec succès'
+            'success' => true,
+            'data' => $vital,
+            'message' => 'Signe vital enregistré avec succès.'
+        ], 201);
+    }
+
+    public function show($id)
+    {
+        $vital = VitalSign::with(['patient', 'nurse'])->find($id);
+
+        if (!$vital) {
+            return response()->json(['message' => 'Non trouvé'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $vital
         ]);
     }
 
-    /**
-     * Signes vitaux d'aujourd'hui pour un patient
-     */
-    public function todayByPatient(Patient $patient)
+    public function update(Request $request, $id)
     {
-        $vitalSigns = $patient->vitalSigns()
-            ->with('nurse')
-            ->today()
-            ->orderBy('measurement_date', 'desc')
-            ->get();
+        $vital = VitalSign::find($id);
 
-        return response()->json($vitalSigns);
-    }
-
-    /**
-     * Alertes (anomalies détectées)
-     */
-    public function alerts(Request $request)
-    {
-        $query = VitalSign::with(['patient', 'nurse'])
-            ->withAnomalies();
-
-        // Filtrage par infirmier si c'est un infirmier
-        $user = $request->user();
-        if ($user->role === 'infirmier') {
-            $query->byNurse($user->id);
+        if (!$vital) {
+            return response()->json(['message' => 'Non trouvé'], 404);
         }
 
-        $alerts = $query->orderBy('measurement_date', 'desc')->get();
+        $validated = $request->validate([
+            'measurement_date' => 'required|date',
+            'temperature' => 'required|numeric|between:30,45',
+            'blood_pressure' => 'required|string',
+            'heart_rate' => 'required|integer|between:30,200',
+            'oxygen_saturation' => 'required|integer|between:70,100',
+            'consciousness' => 'required|string',
+            'mobility' => 'required|string',
+            'nutrition' => 'required|string',
+            'medications_administered' => 'nullable|array',
+            'notes' => 'nullable|string',
+            'anomaly_detected' => 'boolean',
+        ]);
 
-        return response()->json($alerts);
+        $vital->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'data' => $vital,
+            'message' => 'Signe vital mis à jour.'
+        ]);
+    }
+
+    public function destroy($id)
+    {
+        $vital = VitalSign::find($id);
+
+        if (!$vital) {
+            return response()->json(['message' => 'Non trouvé'], 404);
+        }
+
+        $vital->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Signe vital supprimé.'
+        ]);
     }
 }

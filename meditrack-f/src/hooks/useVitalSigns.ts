@@ -1,107 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { VitalSigns } from '../types';
-import { VitalSignsService } from '../services/VitalSignsService';
-import { useApiState } from './useApiState';
+import * as VitalSignsService from '../services/VitalSignsService';
+import { toast } from 'react-toastify';
 
-export function useVitalSigns() {
+export const useVitalSigns = () => {
   const [vitalSigns, setVitalSigns] = useState<VitalSigns[]>([]);
-  const { isLoading, error, setIsLoading, setError } = useApiState();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchVitalSigns = async () => {
+    setLoading(true);
+    try {
+      const data = await VitalSignsService.getAll();
+      setVitalSigns(data);
+      setError(null);
+    } catch (err: any) {
+      const msg = err.message || "Erreur lors du chargement des signes vitaux.";
+      toast.error(msg);
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchVitalSigns = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await VitalSignsService.getAll();
-        setVitalSigns(response.data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred while fetching vital signs');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchVitalSigns();
-  }, [setIsLoading, setError]);
+  }, []);
 
-  const addVitalSigns = async (vitalSigns: VitalSigns) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await VitalSignsService.create(vitalSigns);
-      setVitalSigns(prev => [...prev, response.data]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while adding vital signs');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const updateVitalSigns = async (id: string, vitalSigns: Partial<VitalSigns>) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await VitalSignsService.update(id, vitalSigns);
-      setVitalSigns(prev => prev.map(vs => vs.id === id ? response.data : vs));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while updating vital signs');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const deleteVitalSigns = async (id: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await VitalSignsService.delete(id);
-      setVitalSigns(prev => prev.filter(vs => vs.id !== id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while deleting vital signs');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const getPatientTodayVitalSigns = async (patientId: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await VitalSignsService.getTodayByPatient(patientId);
-      return response.data;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while fetching patient vital signs');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const getVitalSignsAlerts = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await VitalSignsService.getAlerts();
-      return response.data;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while fetching vital signs alerts');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return {
-    vitalSigns,
-    isLoading,
-    error,
-    addVitalSigns,
-    updateVitalSigns,
-    deleteVitalSigns,
-    getPatientTodayVitalSigns,
-    getVitalSignsAlerts,
-  };
-}
+  return { vitalSigns, loading, error, refetch: fetchVitalSigns };
+};

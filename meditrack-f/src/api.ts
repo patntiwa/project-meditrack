@@ -16,12 +16,18 @@ const api = axios.create({
   }
 });
 
-// Intercepteur pour attacher le XSRF-TOKEN manuellement
+// Intercepteur pour attacher XSRF et token Bearer
 api.interceptors.request.use((config) => {
-  const token = getCookie('XSRF-TOKEN');
-  if (token) {
-    config.headers['X-XSRF-TOKEN'] = token;
+  const csrfToken = getCookie('XSRF-TOKEN');
+  if (csrfToken) {
+    config.headers['X-XSRF-TOKEN'] = csrfToken;
   }
+
+  const bearerToken = localStorage.getItem('token');
+  if (bearerToken) {
+    config.headers['Authorization'] = `Bearer ${bearerToken}`;
+  }
+
   return config;
 });
 

@@ -5,11 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
+use Laravel\Sanctum\HasApiTokens; // <-- Ajouté : Indispensable pour Sanctum
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    /**
+     * @use HasApiTokens, HasFactory, Notifiable
+     */
+    use HasApiTokens, HasFactory, Notifiable; // <-- Ajouté : HasApiTokens ici aussi
 
     /**
      * The attributes that are mass assignable.
@@ -20,10 +23,10 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',
-        'specialty',
-        'phone',
-        'is_active',
+        'role',      // <-- Ajouté
+        'specialty', // <-- Ajouté
+        'phone',     // <-- Ajouté
+        'is_active', // <-- Ajouté
     ];
 
     /**
@@ -37,19 +40,23 @@ class User extends Authenticatable
     ];
 
     /**
-     * The attributes that should be cast.
+     * Get the attributes that should be cast.
      *
-     * @var array<string, string>
+     * @return array<string, string>
      */
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-        'password' => 'hashed',
-        'is_active' => 'boolean',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'is_active' => 'boolean', // <-- Ajouté
+        ];
+    }
 
     /**
-     * Relations
+     * Relations : Liaison avec d'autres modèles via les clés étrangères
      */
+
     public function patientsAsDoctor()
     {
         return $this->hasMany(Patient::class, 'assigned_doctor_id');
@@ -86,8 +93,9 @@ class User extends Authenticatable
     }
 
     /**
-     * Scopes
+     * Scopes : Méthodes d'aide pour les requêtes sur les rôles
      */
+
     public function scopeDoctors($query)
     {
         return $query->where('role', 'medecin');
@@ -101,10 +109,5 @@ class User extends Authenticatable
     public function scopeAdmins($query)
     {
         return $query->where('role', 'admin');
-    }
-
-    public function scopeActive($query)
-    {
-        return $query->where('is_active', true);
     }
 }

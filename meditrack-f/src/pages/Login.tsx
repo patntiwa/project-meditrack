@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Activity, Mail, Lock, Eye, EyeOff } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import Button from '../components/Common/Button';
 import Input from '../components/Common/Input';
 
@@ -15,7 +15,7 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); // ⛔️ Empêche le rechargement automatique du form
+    e.preventDefault();
     setLoading(true);
     setError('');
 
@@ -23,12 +23,13 @@ const Login: React.FC = () => {
       const user = await login(email, password);
       console.log('Utilisateur reçu après login :', user);
 
-      if (!user) {
+      if (!user || typeof user.role !== 'string') {
         setError('Email ou mot de passe invalide.');
         return;
       }
 
-      // Redirection selon le rôle
+      console.log('Redirection prévue pour le rôle :', user.role);
+
       switch (user.role) {
         case 'admin':
           navigate('/admin/dashboard');
@@ -41,6 +42,7 @@ const Login: React.FC = () => {
           break;
         default:
           setError("Rôle non reconnu.");
+          return;
       }
 
     } catch (err) {
@@ -49,6 +51,7 @@ const Login: React.FC = () => {
     } finally {
       setLoading(false);
     }
+
   };
 
   return (

@@ -1,12 +1,48 @@
-import { VitalSigns } from '../types';
 import api from './api';
+import { VitalSigns } from '../types';
 
-export const VitalSignsService = {
-  getAll: () => api.get<VitalSigns[]>('/api/vital-signs'),
-  getById: (id: string) => api.get<VitalSigns>(`/api/vital-signs/${id}`),
-  create: (vitalSigns: VitalSigns) => api.post<VitalSigns>('/api/vital-signs', vitalSigns),
-  update: (id: string, vitalSigns: Partial<VitalSigns>) => api.put<VitalSigns>(`/api/vital-signs/${id}`, vitalSigns),
-  delete: (id: string) => api.delete(`/api/vital-signs/${id}`),
-  getTodayByPatient: (patientId: string) => api.get<VitalSigns[]>(`/api/patients/${patientId}/vital-signs/today`),
-  getAlerts: () => api.get<VitalSigns[]>('/api/vital-signs-alerts'),
+const base = '/vital-signs';
+
+export const getAll = async (): Promise<VitalSigns[]> => {
+  try {
+    const response = await api.get(base);
+    return response.data.data;
+  } catch {
+    throw new Error("Impossible de récupérer les signes vitaux.");
+  }
+};
+
+export const getById = async (id: number): Promise<VitalSigns> => {
+  try {
+    const response = await api.get(`${base}/${id}`);
+    return response.data.data;
+  } catch {
+    throw new Error(`Impossible de récupérer le signe vital #${id}.`);
+  }
+};
+
+export const create = async (data: Partial<VitalSigns>): Promise<VitalSigns> => {
+  try {
+    const response = await api.post(base, data);
+    return response.data.data;
+  } catch {
+    throw new Error("Échec de l’enregistrement du signe vital.");
+  }
+};
+
+export const update = async (id: number, data: Partial<VitalSigns>): Promise<VitalSigns> => {
+  try {
+    const response = await api.put(`${base}/${id}`, data);
+    return response.data.data;
+  } catch {
+    throw new Error(`Échec de la mise à jour du signe vital #${id}.`);
+  }
+};
+
+export const remove = async (id: number): Promise<void> => {
+  try {
+    await api.delete(`${base}/${id}`);
+  } catch {
+    throw new Error(`Échec de la suppression du signe vital #${id}.`);
+  }
 };

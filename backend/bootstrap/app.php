@@ -5,7 +5,9 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\Authenticate;
 use App\Http\Middleware\AdminMiddleware;
-
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -16,16 +18,19 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
 
-        // Pour créer un alias 'auth' ou 'admin'
-    $middleware->alias([
-        'auth'  => \App\Http\Middleware\Authenticate::class,
-        'admin' => \App\Http\Middleware\AdminMiddleware::class,
-    ]);
+        // Ajout des middlewares spécifiques à l'API pour Sanctum
+        $middleware->api(append: [
+            EnsureFrontendRequestsAreStateful::class,
+        ]);
 
-    // Pour ajouter une middleware à l’API
-    $middleware->api(append: [
-        \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-    ]);
+        // Définition de tous les alias de middleware au même endroit
+        $middleware->alias([
+            'auth'      => Authenticate::class,
+            'admin'     => AdminMiddleware::class,
+            'abilities' => CheckAbilities::class,
+            'ability'   => CheckForAnyAbility::class,
+        ]);
+
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

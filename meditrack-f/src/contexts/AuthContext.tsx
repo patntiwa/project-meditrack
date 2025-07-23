@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import api from '../api';
 import { User } from '../types';
 
@@ -10,20 +10,16 @@ interface AuthContextType {
   logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// EXPORTATION DE AUTHCONTEXT LUI-MÊME POUR POUVOIR L'IMPORTER DANS useAuth.ts
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
-};
+// useAuth EST DÉSORMAIS DANS UN AUTRE FICHIER, PLUS BESOIN ICI
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Chargement initial : vérifier session existante
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -37,34 +33,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsLoading(false);
       }
     };
-    fetchUser();
+    const token = localStorage.getItem('token');
+    if (token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        fetchUser();
+    } else {
+        setIsLoading(false);
+    }
   }, []);
 
   const login = async (email: string, password: string): Promise<User | null> => {
     try {
-      await api.get('/sanctum/csrf-cookie'); // Obligatoire pour Sanctum
+      await api.get('/sanctum/csrf-cookie');
       const loginResponse = await api.post('/api/login', { email, password });
-      
+
       console.log('Réponse complète du login:', loginResponse.data);
-      
+
       if (!loginResponse.data) {
         throw new Error('Pas de données reçues du serveur');
       }
 
-      // La réponse contient directement l'utilisateur
-      const userData = loginResponse.data.user;
-      
+      const { user: userData, accessToken } = loginResponse.data;
+
       if (!userData) {
         throw new Error('Pas de données utilisateur dans la réponse');
       }
 
-      // Stockage du token
-      const token = loginResponse.data.token;
-      if (token) {
-        // Si vous avez besoin de stocker le token quelque part
-        localStorage.setItem('token', token);
+      if (accessToken) {
+        localStorage.setItem('token', accessToken);
+        api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+      } else {
+          console.warn('Le token n\'a pas été reçu dans la réponse du login.');
       }
-      
+
       setUser(userData);
       setIsAuthenticated(true);
       return userData;
@@ -81,9 +82,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await api.post('/api/logout');
     } catch (err) {
       console.error('Logout failed:', err);
+    } finally {
+        localStorage.removeItem('token');
+        setUser(null);
+        setIsAuthenticated(false);
     }
-    setUser(null);
-    setIsAuthenticated(false);
   };
 
   return (

@@ -2,19 +2,30 @@
 
 namespace App\Http\Middleware;
 
-use Closure;
+use Illuminate\Auth\Middleware\Authenticate as Middleware;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 
-class Authenticate
+class Authenticate extends Middleware
 {
     /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * Get the path the user should be redirected to when they are not authenticated.
      */
-    public function handle(Request $request, Closure $next): Response
+    protected function redirectTo(Request $request): ?string
     {
-        return $next($request);
+        if (!$request->expectsJson()) {
+            return route('login'); // tu peux le laisser si tu veux une route web
+        }
+
+        return null; // Ne pas rediriger, Sanctum renverra une erreur JSON automatiquement
+    }
+
+    /**
+     * Override handle unauthenticated attempts to return JSON.
+     */
+    protected function unauthenticated($request, array $guards)
+    {
+        abort(response()->json([
+            'message' => 'Unauthenticated.'
+        ], 401));
     }
 }

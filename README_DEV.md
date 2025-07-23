@@ -1,4 +1,4 @@
-# 🔁 Prompt Copilot – Migration automatique de données mockées vers API Laravel
+# 🔁  Migration automatique de données mockées vers API Laravel
 
 ## 🎯 Objectif
 
