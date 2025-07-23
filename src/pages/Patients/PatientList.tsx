@@ -9,7 +9,11 @@ import { useAuth } from '../../contexts/AuthContext';
 
 const PatientList: React.FC = () => {
   const { user } = useAuth();
-  const { patients } = useData();
+  const { 
+    patients,
+    patientsLoading,
+    patientsError,
+  } = useData();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -72,11 +76,17 @@ const PatientList: React.FC = () => {
             {user?.role === 'admin' ? 'Gestion des patients' : 'Mes patients'}
           </h1>
           <p className="text-gray-600 mt-1">
-            {filteredPatients.length} patient(s) trouvé(s)
+            {patientsLoading ? (
+              'Chargement...'
+            ) : patientsError ? (
+              <span className="text-red-600">Erreur: {patientsError}</span>
+            ) : (
+              `${filteredPatients.length} patient(s) trouvé(s)`
+            )}
           </p>
         </div>
         {user?.role === 'admin' && (
-          <Button icon={Plus} variant="primary">
+          <Button icon={Plus} variant="primary" disabled={patientsLoading}>
             Ajouter un patient
           </Button>
         )}

@@ -9,6 +9,11 @@ function getCookie(name: string): string | null {
 const api = axios.create({
   baseURL: 'http://localhost:8000',
   withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest'
+  }
 });
 
 // Intercepteur pour attacher le XSRF-TOKEN manuellement

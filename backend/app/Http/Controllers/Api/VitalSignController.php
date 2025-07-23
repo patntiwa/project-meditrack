@@ -39,7 +39,11 @@ class VitalSignController extends Controller
 
         $vitalSigns = $query->orderBy('measurement_date', 'desc')->get();
 
-        return response()->json($vitalSigns);
+        return response()->json([
+            'success' => true,
+            'data' => $vitalSigns,
+            'message' => 'Liste des signes vitaux récupérée avec succès.'
+        ], 200);
     }
 
     /**

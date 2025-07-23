@@ -7,7 +7,17 @@ import { useAuth } from '../../contexts/AuthContext';
 
 const DoctorDashboard: React.FC = () => {
   const { user } = useAuth();
-  const { patients, consultations, appointments } = useData();
+  const { 
+    patients,
+    patientsLoading,
+    patientsError,
+    consultations,
+    consultationsLoading,
+    consultationsError,
+    appointments,
+    appointmentsLoading,
+    appointmentsError
+  } = useData();
   
   const todayAppointments = appointments.filter(apt => 
     new Date(apt.date).toDateString() === new Date().toDateString()
@@ -22,6 +32,28 @@ const DoctorDashboard: React.FC = () => {
     chronicPatients: patients.filter(p => p.status === 'suivi-chronique').length,
     totalPatients: patients.length
   };
+
+  if (patientsLoading || consultationsLoading || appointmentsLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <p className="text-gray-500">Chargement du tableau de bord...</p>
+      </div>
+    );
+  }
+
+  if (patientsError || consultationsError || appointmentsError) {
+    return (
+      <div className="p-6">
+        <div className="text-center">
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-red-500">
+            Une erreur est survenue lors du chargement des données:
+            {patientsError || consultationsError || appointmentsError}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -41,36 +73,63 @@ const DoctorDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Consultations ce mois</p>
-              <p className="text-2xl font-bold text-gray-900">{monthlyStats.consultations}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {consultationsLoading ? (
+                  <span className="text-gray-400">...</span>
+                ) : (
+                  monthlyStats.consultations
+                )}
+              </p>
             </div>
             <div className="w-12 h-12 bg-gradient-to-br from-teal-400 to-blue-500 rounded-lg flex items-center justify-center">
-              <Activity className="w-6 h-6 text-white" />
+              <Activity className={`w-6 h-6 ${consultationsLoading ? 'text-gray-300' : 'text-white'}`} />
             </div>
           </div>
+          {consultationsError && (
+            <p className="text-sm text-red-500 mt-2">{consultationsError}</p>
+          )}
         </Card>
 
         <Card>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Patients en suivi</p>
-              <p className="text-2xl font-bold text-gray-900">{monthlyStats.chronicPatients}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {patientsLoading ? (
+                  <span className="text-gray-400">...</span>
+                ) : (
+                  monthlyStats.chronicPatients
+                )}
+              </p>
             </div>
             <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-lg flex items-center justify-center">
-              <Users className="w-6 h-6 text-white" />
+              <Users className={`w-6 h-6 ${patientsLoading ? 'text-gray-300' : 'text-white'}`} />
             </div>
           </div>
+          {patientsError && (
+            <p className="text-sm text-red-500 mt-2">{patientsError}</p>
+          )}
         </Card>
 
         <Card>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total patients</p>
-              <p className="text-2xl font-bold text-gray-900">{monthlyStats.totalPatients}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {patientsLoading ? (
+                  <span className="text-gray-400">...</span>
+                ) : (
+                  monthlyStats.totalPatients
+                )}
+              </p>
             </div>
             <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-white" />
+              <TrendingUp className={`w-6 h-6 ${patientsLoading ? 'text-gray-300' : 'text-white'}`} />
             </div>
           </div>
+          {patientsError && (
+            <p className="text-sm text-red-500 mt-2">{patientsError}</p>
+          )}
         </Card>
       </div>
 
@@ -78,7 +137,17 @@ const DoctorDashboard: React.FC = () => {
         {/* Rendez-vous à venir */}
         <Card title="Rendez-vous à venir">
           <div className="space-y-4">
-            {todayAppointments.length === 0 ? (
+            {appointmentsLoading ? (
+              <div className="text-center py-8">
+                <Clock className="w-12 h-12 text-gray-300 animate-pulse mx-auto mb-4" />
+                <p className="text-gray-400">Chargement des rendez-vous...</p>
+              </div>
+            ) : appointmentsError ? (
+              <div className="text-center py-8">
+                <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <p className="text-red-500">{appointmentsError}</p>
+              </div>
+            ) : todayAppointments.length === 0 ? (
               <div className="text-center py-8">
                 <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500">Aucun rendez-vous aujourd'hui</p>

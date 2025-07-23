@@ -44,8 +44,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       await api.get('/sanctum/csrf-cookie'); // Obligatoire pour Sanctum
       const loginResponse = await api.post('/api/login', { email, password });
+      
+      console.log('Réponse complète du login:', loginResponse.data);
+      
+      if (!loginResponse.data) {
+        throw new Error('Pas de données reçues du serveur');
+      }
 
+      // La réponse contient directement l'utilisateur
       const userData = loginResponse.data.user;
+      
+      if (!userData) {
+        throw new Error('Pas de données utilisateur dans la réponse');
+      }
+
+      // Stockage du token
+      const token = loginResponse.data.token;
+      if (token) {
+        // Si vous avez besoin de stocker le token quelque part
+        localStorage.setItem('token', token);
+      }
       
       setUser(userData);
       setIsAuthenticated(true);
@@ -54,7 +72,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.error('Login failed:', err);
       setUser(null);
       setIsAuthenticated(false);
-      return null;
+      throw err;
     }
   };
 
